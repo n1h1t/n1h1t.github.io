@@ -22,3 +22,11 @@ h1 {
 h2 {
     color: #555;
 }
+html {
+  scroll-behavior: smooth;
+}
+
+section {
+  min-height: 100vh;
+  padding: 80px 20px;
+}
