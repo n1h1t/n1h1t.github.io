@@ -45,14 +45,178 @@
         </p><br>
 
         <p>
-            Event ID 1 <br>
+            <p>
+            <b>Event ID 1 - Process Creation</b><br>
+            The goal of this lab was to understand how Sysmon Event ID 1 logs process creation events and how parent-child process relationships can be used during investigations. <br>
+            <b>Environment: </b> <br>
+            -Windows 11 <br>
+            -Sysmon <br>
+            -Elastic Agent <br>
+            -Kibana <br>
+            -Elastic Search <br>
             
-            Event ID 3 <br>
-            Event ID 5 <br>
-            Event ID 7 <br>
-            Event ID 11 <br>
-            Event ID 13 <br>
-            Event ID 22 <br>
+            <b>What is Sysmon Event ID 1? </b><br>
+            Sysmon Event ID 1 records every process created on a Windows system. The event provides information such as: <br>
+
+            -Process Name <br>
+            -Executable Path <br>
+            -Command Line <br>
+            -Parent Process <br>
+            -User Account <br>
+            -Process GUID <br>
+
+            <b>Generating Test Events </b><br>
+            To generate Event ID 1 logs, Command Prompt was opened and the following command was executed: <br>
+            <ul>
+            <li>start chrome</li>
+            <img src="sysmon images/chromw.png" alt="" width="800" height="100">
+            <li>whoami</li>
+            <img src="sysmon images/whoami.png" alt="" width="800" height="100">
+            <li>ipconfig</li>
+            <img src="sysmon images/ipconfig.png" alt="" width="800" height="100">
+            <li>notepad</li>
+            <img src="sysmon images/notepad.png" alt="" width="800" height="100">
+            <li>powershell</li>
+            <img src="sysmon images/powershelll.png" alt="" width="800" height="100">
+            <li>Get-Process calc</li>
+            <img src="sysmon images/calc.png" alt="" width="800" height="100">
+            </ul>
+            
+            <b>Kibana Query</b><br>
+            The following KQL query was used:
+
+            event.dataset : "windows.sysmon_operational" and winlog.event_id : 1 <br>
+
+            <b>Why This Matters</b><br>
+            Parent-child process relationships are an important investigative artifact. <br>
+
+            Examples of normal behavior include: <br>
+
+            explorer.exe → chrome.exe <br>
+            explorer.exe → notepad.exe <br>
+
+            Examples of suspicious behavior include: <br>
+
+            winword.exe → powershell.exe <br>
+            outlook.exe → cmd.exe <br>
+            powershell.exe → rundll32.exe <br>
+
+            These relationships can indicate malicious document execution, phishing attacks, or malware activity. <br>
+
+            <b>Lessons Learned</b><br>
+            -Sysmon Event ID 1 provides detailed process creation telemetry. <br>
+            -Parent-child process relationships help determine how applications were launched. <br>
+            -Kibana can be used to quickly identify and investigate process execution activity. <br>
+            -Understanding normal process relationships is critical before identifying malicious behavior. <br>
+
+
+            </p>
+            <b>Event ID 3 - Network Connection</b> <br>
+            <p>
+            The objective of this lab was to understand how Sysmon Event ID 3 records network connection activity and how these events can be investigated using the Elastic Stack. <br>
+            
+            <b>What is Sysmon Event ID 3? </b><br>
+            Sysmon Event ID 3 records network connections initiated by processes running on a Windows system. <br>
+
+            Unlike traditional firewall logs, Event ID 3 identifies the exact process responsible for the network activity, allowing analysts to associate connections with specific applications. <br>
+
+            Event ID 3 can provide information such as: <br>
+
+            -Process Name <br>
+            -Executable Path <br>
+            -Source IP Address <br>
+            -Source Port <br>
+            -Destination IP Address <br>
+            -Destination Port <br>
+            -Protocol <br>
+            -User Account <br>
+
+            This information is valuable when investigating malware activity, command and control communications, suspicious PowerShell usage, and unauthorized outbound connections. <br>
+
+            <b>Initial Investigation </b><br>
+            After successfully investigating Sysmon Event ID 1 (Process Creation), the next step was to generate Event ID 3 network connection events.<br>
+
+            Several applications were opened and internet activity was generated. However, no Event ID 3 events appeared in either Event Viewer or Kibana.<br>
+
+            At this stage, the Elastic Stack appeared to be functioning correctly because Event ID 1 logs were successfully reaching Kibana.<br>
+
+            The issue appeared to originate from Sysmon itself. <br>
+
+            <b>Troubleshooting & Remediation </b><br>
+            To investigate further, the current Sysmon configuration was reviewed using:<br>
+
+            <i>sysmon64.exe -c</i><br>
+
+            The output revealed:<br>
+
+            <i>Network connection: disabled</i><br>
+            <i>No rules installed</i><br>
+
+            This explained why no Event ID 3 events were being generated.<br>
+
+            Although Sysmon was installed and collecting Process Creation events, Network Connection monitoring was disabled.<br>
+
+            To enable additional telemetry, the default Sysmon configuration was replaced with the Olaf Hartong Sysmon configuration.<br>
+
+            After applying the configuration, Sysmon reported:<br>
+
+            <i>Network connection: enabled</i><br>
+
+            This confirmed that Event ID 3 collection had been activated.<br>
+
+            <b>Generating Test Events </b><br>
+            To generate network connection activity, PowerShell was used to make outbound web requests:<br>
+
+           <i>Invoke-WebRequest https://github.com</i><br>
+
+            Additional testing was performed by opening applications such as Discord and Chrome, both of which establish outbound internet connections.<br>
+
+            <b>Kibana Query</b><br>
+            The following KQL query was used:<br>
+
+            process.name : "powershell.exe" and winlog.event_id : 3 <br>
+
+            <img src="sysmon images/web-invoke.png" alt="" width="800" height="500"> <br>
+            <img src="sysmon images/network-powershell.png" alt="" width="800" height="500"> <br>
+            <img src="sysmon images/network-json.png" alt="" width="800" height="500"> <br>
+
+            <b>Why This Matters</b><br>
+            Event ID 3 provides visibility into process-level network activity.<br>
+
+            For example:<br>
+
+            Github.exe<br>
+            ↓<br>
+            Connected to<br>
+            ↓<br>
+            162.159.x.x<br>
+
+            or<br>
+
+            powershell.exe<br>
+            ↓<br>
+            Connected to<br>
+            ↓<br>
+            External IP Address<br>
+
+            Without Event ID 3, investigators may know that network traffic occurred, but they may not know which process initiated the connection.<br>
+
+            This visibility is especially useful during incident response investigations involving:<br>
+
+            -Malware infections<br>
+            -Command and Control (C2) communications<br>
+            -PowerShell abuse<br>
+            -Living-off-the-land techniques<br>
+            -Unauthorized outbound traffic<br>
+
+            <b>Lessons Learned</b><br>
+            -Sysmon Event ID 3 must be enabled through configuration before network events are collected. <br>
+            -Validating the log source is an important troubleshooting step when expected telemetry is missing. <br>
+            Event ID 3 identifies the specific process responsible for a network connection. <br>
+            -Understanding normal process relationships is critical before identifying malicious behavior. <br>
+
+
+            </p>
         </p>
 
     </div>
@@ -62,17 +226,17 @@
     <footer>
 
         <div class="footer-links">
-            <a href="https://github.com/yourusername" target="_blank">
+            <a href="https://github.com/n1h1t" target="_blank">
                 GitHub
             </a>
 
-            <a href="https://linkedin.com/in/yourprofile" target="_blank">
+            <a href="https://linkedin.com/in/nihit-bhatia-885a67254" target="_blank">
                 LinkedIn
             </a>
 
             
 
-            <a href="mailto:your@email.com">
+            <a href="mailto:champonline03@gmail.com">
                 Email
             </a>
         </div>
